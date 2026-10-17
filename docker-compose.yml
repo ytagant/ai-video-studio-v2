@@ -1,0 +1,10 @@
+services:
+  studio:
+    build: .
+    ports:
+      - "7860:7860"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/jobs:/app/jobs
+    restart: unless-stopped

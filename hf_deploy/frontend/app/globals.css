@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #0a0a0f;
+  color: #e8e8ee;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #121218; }
+::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 4px; }
+
+input, select, textarea { color-scheme: dark; }

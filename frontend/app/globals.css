@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #0a1120;
+  color: #e8eaf0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0a1120; }
+::-webkit-scrollbar-thumb { background: #24334f; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #31445f; }
+
+input, select, textarea { color-scheme: dark; }
+
+/* range slider */
+input[type="range"].studio-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #f5a623 var(--fill, 10%), #24334f var(--fill, 10%));
+  outline: none;
+}
+input[type="range"].studio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 9999px;
+  background: #f5a623;
+  border: 3px solid #0a1120;
+  box-shadow: 0 0 0 1.5px #f5a623, 0 2px 8px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+input[type="range"].studio-range::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 9999px;
+  background: #f5a623;
+  border: 3px solid #0a1120;
+  box-shadow: 0 0 0 1.5px #f5a623;
+  cursor: pointer;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- Production floor bot animations ----------
+   Only the WORKING bot gets these classes; idle/done stay static. */
+@keyframes bot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes visor-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+@keyframes holo-glow {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+@keyframes holo-scan {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 0.9; }
+  88% { opacity: 0.9; }
+  100% { transform: translateY(96px); opacity: 0; }
+}
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+@keyframes soft-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.bot-working { animation: bot-bob 2.6s ease-in-out infinite; }
+.bot-working .visor { animation: visor-pulse 1.7s ease-in-out infinite; }
+.bot-working .holo { animation: holo-glow 2.6s ease-in-out infinite; }
+.bot-working .holo-scan {
+  animation: holo-scan 3s linear infinite;
+}
+.bot-working .eq-bar {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  animation: eq-bounce 1.1s ease-in-out infinite;
+}
+.bot-working .tdot { animation: typing-dot 1.2s ease-in-out infinite; }
+.bot-working .blink { animation: soft-blink 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .bot-working, .bot-working .visor, .bot-working .holo,
+  .bot-working .holo-scan, .bot-working .eq-bar,
+  .bot-working .tdot, .bot-working .blink { animation: none !important; }
+}
+
+/* gold toggle switch */
+.toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.12);
+  transition: background 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.toggle[data-on="true"] { background: #f5a623; }
+.toggle .knob {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  transition: left 0.2s;
+}
+.toggle[data-on="true"] .knob { left: 21px; }

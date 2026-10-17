@@ -1,0 +1,15 @@
+# Render Blueprint for AI Video Studio (free tier).
+# Backend (FastAPI + FFmpeg) serves the API and the built Next.js frontend.
+# Render sets $PORT automatically; the Dockerfile already honours ${PORT:-7860}.
+services:
+  - type: web
+    name: ai-video-studio
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
