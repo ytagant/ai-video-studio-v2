@@ -42,6 +42,8 @@ async def run_production(job_id: str, params: Dict[str, Any], workdir: Path,
                            "description": script.get("description", ""),
                            "hashtags": script.get("hashtags", []),
                            "script_engine": ctx.data.get("script_engine", "unknown")}
+        if ctx.data.get("script_note"):
+            job["metadata"]["script_note"] = ctx.data["script_note"]
         await send(job_id, {"type": "scenes", "scenes": job["scenes"]})
         await send(job_id, {"type": "metadata", "metadata": job["metadata"]})
 
@@ -58,6 +60,8 @@ async def run_production(job_id: str, params: Dict[str, Any], workdir: Path,
             job["metadata"]["credits"] = "Stock footage: " + ", ".join(srcs)
         await visual_artist_agent(ctx)
         final = await editor_agent(ctx)
+        if ctx.data.get("editor_note"):
+            job["metadata"]["editor_note"] = ctx.data["editor_note"]
 
         job["status"] = "done"
         job["video"] = str(final)

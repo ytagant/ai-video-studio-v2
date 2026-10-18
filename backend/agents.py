@@ -235,6 +235,7 @@ async def researcher_agent(ctx: Ctx) -> Dict[str, Any]:
         try:
             script = await asyncio.to_thread(_gemini_script, key, topic, style, language, n_scenes, target, category)
         except Exception as e:
+            ctx.data["script_note"] = f"gemini_failed: {type(e).__name__}: {str(e)[:220]}"
             await ctx.emit("researcher", "working", 45, f"Gemini unavailable ({e}); using local writer…")
     if script is None:
         script = _template_script(topic, style, language, n_scenes, target, category)
@@ -441,7 +442,9 @@ def _pixabay_clip(api_key: str, query: str, dest: Path, page: int = 1,
     r.raise_for_status()
     for v in r.json().get("hits", []):
         vids = v.get("videos", {})
-        for q in ("large", "medium", "small"):
+        # medium first: ~720p is ideal for our output and decodes with far less
+        # RAM than "large" (often 1080p/4K) on 512MB boxes
+        for q in ("medium", "large", "small"):
             link = (vids.get(q) or {}).get("url")
             if not link or (used is not None and link in used):
                 continue
@@ -784,7 +787,9 @@ async def editor_agent(ctx: Ctx) -> Path:
     music = os.getenv("MUSIC_FILE")
     total = len(ctx.data["script"]["scenes"])
     await ctx.emit("editor", "working", 25, "Compositing scenes…")
-    final = await asyncio.to_thread(render_timeline, ctx.data["script"]["scenes"], ctx.workdir, music)
+    final, subs_burned = await asyncio.to_thread(render_timeline, ctx.data["script"]["scenes"], ctx.workdir, music)
+    if not subs_burned:
+        ctx.data["editor_note"] = "subtitles_skipped_low_memory_fallback"
     await ctx.emit("editor", "working", 85, "Burning subtitles & mixing audio…")
     await ctx.emit("editor", "done", 100, f"Render complete: {final.name}")
     return final

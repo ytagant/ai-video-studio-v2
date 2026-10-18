@@ -30,8 +30,13 @@ def build_srt(scenes: List[Dict], path: Path) -> Path:
     return path
 
 
-def render_timeline(scenes: List[Dict], workdir: Path, music: Optional[str] = None) -> Path:
-    """Composite scenes into final MP4. Returns path to final.mp4."""
+def render_timeline(scenes: List[Dict], workdir: Path, music: Optional[str] = None):
+    """Composite scenes into final MP4. Returns (final_path, subtitles_burned).
+
+    Built for 512MB containers: the heavy subtitle-burn runs with a single
+    x264 thread, and if it still gets OOM-killed the job delivers the video
+    without burned subtitles instead of failing.
+    """
     segs: List[Path] = []
     auds: List[str] = []
 
@@ -69,29 +74,42 @@ def render_timeline(scenes: List[Dict], workdir: Path, music: Optional[str] = No
     sh(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(alist),
         "-c:a", "aac", "-b:a", "128k", str(narr)])
 
+    # --- audio track (optional music bed), audio-only = light ---
+    if music and Path(music).exists():
+        mixed = workdir / "audio_mix.m4a"
+        sh(["ffmpeg", "-y", "-i", str(narr), "-stream_loop", "-1", "-i", str(music),
+            "-filter_complex",
+            "[1:a]volume=0.12,apad[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
+            "-map", "[a]", "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100",
+            str(mixed)])
+        audio = mixed
+    else:
+        audio = narr
+
+    # --- light A/V mux first (video stream-copied, already 720p) ---
+    av = workdir / "av.mp4"
+    sh(["ffmpeg", "-y", "-i", str(vcat), "-i", str(audio),
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100",
+        "-shortest", str(av)])
+
+    # --- subtitle burn (the memory-heavy step) ---
     srt = build_srt(scenes, workdir / "subs.srt")
     # Noto Sans Arabic covers Urdu/Arabic script (default DejaVu shows boxes)
     sub = ("subtitles='" + str(srt) + "':force_style="
            "'FontName=Noto Sans Arabic,FontSize=22,PrimaryColour=&HFFFFFF,"
            "OutlineColour=&H80000000,BorderStyle=1,Outline=2,MarginV=40'")
-    # Low-memory encodes for small containers (512MB): everything 720p + ultrafast + 2 threads.
-    # (1080p per-scene segments were SIGKILLed by the OOM killer on the free tier.)
-    vf_final = sub + ",scale=1280:720,setsar=1,format=yuv420p"
-
+    vf_final = sub + ",setsar=1,format=yuv420p"  # already 720p — no scale needed
     final = workdir / "final.mp4"
-    if music and Path(music).exists():
-        sh(["ffmpeg", "-y", "-i", str(vcat), "-i", str(narr), "-stream_loop", "-1", "-i", music,
-            "-filter_complex",
-            "[2:a]volume=0.12,apad[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
-            "-map", "0:v", "-map", "[a]", "-vf", vf_final,
-            "-c:v", "libx264", "-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p",
-            "-preset", "ultrafast", "-threads", "2", "-crf", "23", "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100", "-shortest", str(final)])
-    else:
-        sh(["ffmpeg", "-y", "-i", str(vcat), "-i", str(narr),
-            "-vf", vf_final, "-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
-            "-pix_fmt", "yuv420p", "-preset", "ultrafast", "-threads", "2", "-crf", "23",
-            "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100",
-            "-shortest", str(final)])
-    return final
+    try:
+        sh(["ffmpeg", "-y", "-i", str(av), "-vf", vf_final,
+            "-c:v", "libx264", "-profile:v", "high", "-level", "4.0",
+            "-pix_fmt", "yuv420p", "-preset", "ultrafast", "-threads", "1",
+            "-crf", "23", "-movflags", "+faststart", "-c:a", "copy", str(final)])
+        return final, True
+    except Exception:
+        # subtitle burn OOM-killed: deliver the video without burned subtitles
+        # rather than failing the whole job
+        if final.exists():
+            final.unlink()
+        av.rename(final)
+        return final, False
