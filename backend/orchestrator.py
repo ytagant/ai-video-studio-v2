@@ -40,7 +40,8 @@ async def run_production(job_id: str, params: Dict[str, Any], workdir: Path,
         job["scenes"] = script["scenes"]
         job["metadata"] = {"title": script.get("title", params["topic"]),
                            "description": script.get("description", ""),
-                           "hashtags": script.get("hashtags", [])}
+                           "hashtags": script.get("hashtags", []),
+                           "script_engine": ctx.data.get("script_engine", "unknown")}
         await send(job_id, {"type": "scenes", "scenes": job["scenes"]})
         await send(job_id, {"type": "metadata", "metadata": job["metadata"]})
 

@@ -34,6 +34,16 @@ MUSIC_MOODS = {
     "Cinematic Explainer": "uplifting modern cinematic",
 }
 
+# Gemini model cascade — Google retired gemini-2.0-flash on 2026-06-01
+# (every call 404s) and gemini-2.5-flash on 2026-10-16. Try current models in
+# order; GEMINI_MODEL env overrides the default pick.
+GEMINI_MODELS = [m for m in [
+    os.getenv("GEMINI_MODEL", "").strip(),
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+] if m]
+
 # Content categories — selected in the UI; drive script tone + footage keywords
 CATEGORIES = {
     "Anime": {
@@ -122,7 +132,6 @@ def _gemini_script(api_key: str, topic: str, style: str, language: str,
                    n_scenes: int, target: int, category: str = "Documentary") -> Dict[str, Any]:
     import google.generativeai as genai
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
     guide = STYLE_GUIDE.get(style, STYLE_GUIDE["Documentary"])
     cat_tone = CATEGORIES.get(category, CATEGORIES["Documentary"])["tone"]
     prompt = (
@@ -131,14 +140,27 @@ def _gemini_script(api_key: str, topic: str, style: str, language: str,
         f"Language of narration: {language}. Target total duration ~{target} seconds across {n_scenes} scenes.\n"
         "Return STRICT JSON only, no markdown fences:\n"
         '{"title":"...","description":"...","hashtags":["#..",...],'
-        '"scenes":[{"narration":"...","keywords":"3-5 english footage search keywords","seconds":8}, ...]}\n'
-        "Each narration 1-3 sentences. Seconds per scene 5-12. Hashtags 8-12."
+        '"scenes":[{"narration":"...","keywords":"...","seconds":8}, ...]}\n'
+        "Each narration 1-3 sentences. Seconds per scene 5-12. Hashtags 8-12.\n"
+        "Per scene, \"keywords\" must be 2-4 CONCRETE english words describing exactly what the "
+        "viewer should SEE as real stock footage (e.g. \"kitten eating from bowl\", \"cairo street market\"). "
+        "Never use abstract, cinematic or film-jargon words (no establishing, cinematic, dramatic, "
+        "inspiring, documentary, 3d, cartoon, anime, detail, history). Make every scene's keywords "
+        "visually different from the others."
     )
-    resp = model.generate_content(prompt)
-    data = extract_json(getattr(resp, "text", ""))
-    if not data or "scenes" not in data:
-        raise ValueError("Gemini did not return valid script JSON")
-    return data
+    last_err: Optional[Exception] = None
+    for model_name in GEMINI_MODELS:
+        try:
+            model = genai.GenerativeModel(model_name)
+            resp = model.generate_content(prompt)
+            data = extract_json(getattr(resp, "text", ""))
+            if data and "scenes" in data:
+                data["_gemini_model"] = model_name
+                return data
+            last_err = ValueError(f"{model_name}: no valid script JSON")
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+    raise ValueError(f"Gemini unavailable ({last_err})")
 
 
 def _template_script(topic: str, style: str, language: str, n_scenes: int, target: int,
@@ -179,17 +201,16 @@ def _template_script(topic: str, style: str, language: str, n_scenes: int, targe
             ("cta", f"If this {cat} story of {topic} amazed you, share it — and stay curious."),
         ]
     scenes = []
-    # short footage queries: 2-3 significant topic words + a beat noun
-    # (stock APIs AND every term — long queries return nothing)
-    twords = [w.strip(",:;") for w in topic.split() if len(w.strip(",:;")) > 3][:3]
+    # concrete topic words only — beat nouns ("establishing", "cinematic", "dramatic"...)
+    # poison stock searches (they match "establishing shots" = Earth from space).
+    # Per-scene variety comes from result-page rotation in the footage hunter.
+    twords = [w.strip(",:;") for w in topic.split() if len(w.strip(",:;")) >= 3][:4]
     tshort = " ".join(twords) if twords else topic
-    beat_noun = {"hook": "establishing", "context": "history", "deep": "detail",
-                 "twist": "dramatic", "close": "wide", "cta": "inspiring"}
     for i in range(n_scenes):
-        kind, line = beats[min(i, len(beats) - 1)] if i < len(beats) else beats[2]
+        _kind, line = beats[i] if i < len(beats) else beats[2]
         scenes.append({
             "narration": line,
-            "keywords": f"{tshort} {beat_noun.get(kind, 'cinematic')}",
+            "keywords": tshort,
             "seconds": per,
         })
     return {
@@ -217,6 +238,7 @@ async def researcher_agent(ctx: Ctx) -> Dict[str, Any]:
             await ctx.emit("researcher", "working", 45, f"Gemini unavailable ({e}); using local writer…")
     if script is None:
         script = _template_script(topic, style, language, n_scenes, target, category)
+    ctx.data["script_engine"] = script.pop("_gemini_model", "template-fallback")
     # normalize
     total = 0.0
     for s in script["scenes"]:
@@ -367,12 +389,13 @@ async def voice_agent(ctx: Ctx) -> Dict[str, Any]:
 
 # ------------------------------------------------------------- 4. footage hunter
 
-def _pexels_clip(api_key: str, query: str, dest: Path) -> Optional[Path]:
+def _pexels_clip(api_key: str, query: str, dest: Path, page: int = 1,
+                 used: Optional[set] = None) -> Optional[Path]:
     import requests
     r = requests.get("https://api.pexels.com/videos/search",
                      headers={"Authorization": api_key},
-                     params={"query": query, "per_page": 3, "orientation": "landscape",
-                             "size": "medium"}, timeout=25)
+                     params={"query": query, "per_page": 3, "page": page,
+                             "orientation": "landscape", "size": "medium"}, timeout=25)
     r.raise_for_status()
     for v in r.json().get("videos", []):
         # smallest file >=960px first: fast download, plenty for 720p output
@@ -380,7 +403,11 @@ def _pexels_clip(api_key: str, query: str, dest: Path) -> Optional[Path]:
         for f in files:
             link = f.get("link", "")
             w = f.get("width", 0) or 0
-            if link and 960 <= w <= 1920 and link.endswith(".mp4"):
+            if not (link and 960 <= w <= 1920 and link.endswith(".mp4")):
+                continue
+            if used is not None and link in used:
+                continue
+            try:
                 d = requests.get(link, stream=True, timeout=120)
                 d.raise_for_status()
                 total = 0
@@ -391,28 +418,54 @@ def _pexels_clip(api_key: str, query: str, dest: Path) -> Optional[Path]:
                             break
                         fh.write(chunk)
                 if total > 200_000 and total <= 80_000_000:
+                    if used is not None:
+                        used.add(link)
                     return dest
                 # empty or oversized — try next file
+            except Exception:
                 continue
     return None
 
 
-def _pixabay_clip(api_key: str, query: str, dest: Path) -> Optional[Path]:
+def _pixabay_clip(api_key: str, query: str, dest: Path, page: int = 1,
+                  used: Optional[set] = None) -> Optional[Path]:
+    """Fetch one stock clip from Pixabay matching `query`.
+
+    Skips URLs already `used` in this job, validates the download is a real
+    mp4, and caps size. Returns dest on success, None otherwise.
+    """
     import requests
     r = requests.get("https://pixabay.com/api/videos/",
-                     params={"key": api_key, "q": query, "per_page": 3}, timeout=25)
+                     params={"key": api_key, "q": query,
+                             "per_page": 5, "page": page}, timeout=25)
     r.raise_for_status()
     for v in r.json().get("hits", []):
         vids = v.get("videos", {})
         for q in ("large", "medium", "small"):
             link = (vids.get(q) or {}).get("url")
-            if link:
-                d = requests.get(link, stream=True, timeout=60)
+            if not link or (used is not None and link in used):
+                continue
+            try:
+                d = requests.get(link, stream=True, timeout=90)
                 d.raise_for_status()
+                total = 0
                 with open(dest, "wb") as fh:
                     for chunk in d.iter_content(1 << 20):
+                        total += len(chunk)
+                        if total > 60_000_000:
+                            raise OSError("clip too large")
                         fh.write(chunk)
+                if total < 200_000:
+                    continue
+                with open(dest, "rb") as fh:
+                    head = fh.read(16)
+                if head[4:8] != b"ftyp":  # not a real mp4 — skip
+                    continue
+                if used is not None:
+                    used.add(link)
                 return dest
+            except Exception:
+                continue
     return None
 
 
@@ -457,7 +510,7 @@ def _commons_clip(query: str, dest: Path, used: Optional[set] = None) -> Optiona
     data = None
     # Commons ANDs every search term, so long queries return nothing.
     # Try progressively shorter queries until one hits.
-    words = [w for w in query.split() if len(w) > 3]
+    words = [w for w in query.split() if len(w) >= 3 and w.lower() not in _QUERY_FILLER]
     attempts = []
     if words:
         attempts.append(" ".join(words))
@@ -551,15 +604,53 @@ def _commons_clip(query: str, dest: Path, used: Optional[set] = None) -> Optiona
     return None
 
 
+# Words that poison stock-video searches: film jargon, style words and abstract
+# nouns. ("establishing" matches "establishing shots" = Earth from space;
+# "3d"/"cartoon" nuke real-footage results.) Category style is expressed
+# through the script's tone, not the footage query.
+_QUERY_POISON = {
+    "establishing", "cinematic", "dramatic", "inspiring", "detail", "details",
+    "history", "historic", "wide", "3d", "cartoon", "documentary", "anime",
+    "colorful", "drawing", "animation", "film", "movie", "video", "footage",
+    "story", "storytelling", "playful", "authoritative", "vivid",
+}
+_QUERY_FILLER = {"the", "and", "for", "with", "from", "about", "into", "over",
+                 "your", "you", "this", "that", "will", "what", "how"}
+
+
+def _stock_query(keywords: str, topic: str) -> str:
+    """Build a stock-API-friendly query: 2-4 concrete visual words.
+
+    Falls back to the topic's significant words when the keywords are all
+    jargon. Order preserved, duplicates dropped.
+    """
+    def _clean(text: str) -> List[str]:
+        out: List[str] = []
+        for w in re.findall(r"[A-Za-z']+", (text or "").lower()):
+            w = w.strip("'")
+            if len(w) >= 3 and w not in _QUERY_POISON and w not in _QUERY_FILLER \
+                    and w not in out:
+                out.append(w)
+        return out
+    words = _clean(keywords)
+    if len(words) < 2:
+        words = _clean(topic)
+    return " ".join(words[:4]) or (topic or "nature")
+
+
 async def footage_agent(ctx: Ctx) -> Dict[str, Any]:
     await ctx.emit("footage", "working", 5, "Hunting stock footage…")
     pexels = os.getenv("PEXELS_API_KEY"); pixabay = os.getenv("PIXABAY_API_KEY")
-    cat_visual = CATEGORIES.get(ctx.p("category", "Documentary"), CATEGORIES["Documentary"])["visual"]
+    topic = ctx.p("topic", "")
     scenes = ctx.data["script"]["scenes"]
     used_urls: set = set()  # don't reuse the same clip twice in one video
+    # topic-first Commons queries (before generic per-category ones)
+    topic_q = _stock_query("", topic)
+    cqueries = ([topic_q] if topic_q else []) + FOOTAGE_QUERIES.get(ctx.p("category", ""), [])
     for i, s in enumerate(scenes):
         dest = ctx.assets / f"scene_{i:02d}_clip.mp4"
-        query = f"{s['keywords']} {cat_visual}"
+        query = _stock_query(s.get("keywords", ""), topic)
+        page = (i % 3) + 1  # rotate result pages so same-query scenes differ
         clip = None
         source = None
         try:  # 1) Pexels via stored connector credential (secure, key never in files)
@@ -569,20 +660,20 @@ async def footage_agent(ctx: Ctx) -> Dict[str, Any]:
             clip = None
         if clip is None and pexels:
             try:
-                clip = await asyncio.to_thread(_pexels_clip, pexels, query, dest)
+                clip = await asyncio.to_thread(_pexels_clip, pexels, query, dest,
+                                               page, used_urls)
                 source = "Pexels" if clip else None
             except Exception:
                 clip = None
         if clip is None and pixabay:
             try:
-                clip = await asyncio.to_thread(_pixabay_clip, pixabay, query, dest)
+                clip = await asyncio.to_thread(_pixabay_clip, pixabay, query, dest,
+                                               page, used_urls)
                 source = "Pixabay" if clip else None
             except Exception:
                 clip = None
         if clip is None:  # Wikimedia Commons — free, no API key needed
             try:
-                # rotate through proven per-category queries (fast, relevant)
-                cqueries = FOOTAGE_QUERIES.get(ctx.p("category", ""), [])
                 cquery = cqueries[i % len(cqueries)] if cqueries else query
                 clip = await asyncio.to_thread(_commons_clip, cquery, dest, used_urls)
                 source = "Wikimedia Commons" if clip else None
@@ -590,6 +681,7 @@ async def footage_agent(ctx: Ctx) -> Dict[str, Any]:
                 clip = None
         s["clip"] = str(clip) if clip else None
         s["clip_source"] = source
+        s["footage_query"] = query
         await ctx.emit("footage", "working", int((i + 1) / len(scenes) * 100),
                        f"Footage {i + 1}/{len(scenes)} {'found' if clip else '— will be AI-painted'}")
     found = sum(1 for s in scenes if s.get("clip"))
@@ -707,17 +799,22 @@ async def apply_reedit(job: Dict[str, Any], instruction: str) -> List[Dict[str, 
         try:
             import google.generativeai as genai
             genai.configure(api_key=key)
-            model = genai.GenerativeModel("gemini-2.0-flash")
             payload = json.dumps([s["narration"] for s in scenes])
-            resp = await asyncio.to_thread(
-                model.generate_content,
-                f"Rewrite each narration per this instruction: {instruction}\n"
-                f"Return STRICT JSON only: {{\"narrations\":[\"...\", ...]}}\n{ payload}")
-            data = extract_json(getattr(resp, "text", ""))
-            if data and isinstance(data.get("narrations"), list) and len(data["narrations"]) == len(scenes):
-                for s, n in zip(scenes, data["narrations"]):
-                    s["narration"] = n
-                return scenes
+            for model_name in GEMINI_MODELS:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    resp = await asyncio.to_thread(
+                        model.generate_content,
+                        f"Rewrite each narration per this instruction: {instruction}\n"
+                        f"Return STRICT JSON only: {{\"narrations\":[\"...\", ...]}}\n{ payload}")
+                    data = extract_json(getattr(resp, "text", ""))
+                    if data and isinstance(data.get("narrations"), list) \
+                            and len(data["narrations"]) == len(scenes):
+                        for s, n in zip(scenes, data["narrations"]):
+                            s["narration"] = n
+                        return scenes
+                except Exception:
+                    continue
         except Exception:
             pass
     for s in scenes:
