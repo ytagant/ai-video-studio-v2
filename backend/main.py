@@ -125,6 +125,16 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/api/version")
+async def version():
+    """Deployed build identity — tells which code is actually live."""
+    return {"build": BUILD_TAG}
+
+
+# Bump on every deploy so we can tell which code is live behind the edge.
+BUILD_TAG = "2026-10-18-theme-light-redeploy-1"
+
+
 # ---- Serve the built frontend (single-container deployment) ----
 # API/WS routes above take precedence; everything else serves the SPA.
 try:
