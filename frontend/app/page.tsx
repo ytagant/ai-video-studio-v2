@@ -26,7 +26,8 @@ export default function Home() {
   const [videoReady, setVideoReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("Documentary");
-  const [style, setStyle] = useState("3D Recreation");
+  const [style, setStyle] = useState("cinematic");
+  const [aspect, setAspect] = useState<"16:9" | "9:16">("16:9");
   const [language, setLanguage] = useState("English");
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function Home() {
   const workingCount = agentVals.filter((a) => a.status === "working").length;
   const doneCount = agentVals.filter((a) => a.status === "done").length;
   const avgProgress = Math.round(agentVals.reduce((s, a) => s + (a.progress || 0), 0) / 6);
-  const metaLine = `${style.toLowerCase()} · ${language.toLowerCase()} · 16:9 · ${avgProgress}%`;
+  const metaLine = `${style.toLowerCase()} · ${language.toLowerCase()} · ${aspect} · ${avgProgress}%`;
 
   return (
     <div className="flex min-h-screen bg-studio-bg">
@@ -118,6 +119,7 @@ export default function Home() {
               onStart={start}
               onCategoryChange={setCategory}
               onStyleChange={setStyle}
+              onAspectChange={setAspect}
               onLanguageChange={setLanguage}
             />
 

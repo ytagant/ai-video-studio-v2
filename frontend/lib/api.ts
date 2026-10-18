@@ -24,6 +24,8 @@ export interface JobParams {
   language: string;
   style: string;
   category?: string;
+  aspect?: "16:9" | "9:16";
+  key_points?: string;
   voice: string;
 }
 

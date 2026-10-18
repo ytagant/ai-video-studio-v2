@@ -39,9 +39,12 @@ async def run_production(job_id: str, params: Dict[str, Any], workdir: Path,
         script = await researcher_agent(ctx)
         job["scenes"] = script["scenes"]
         job["metadata"] = {"title": script.get("title", params["topic"]),
+                           "title_options": script.get("title_options", []),
                            "description": script.get("description", ""),
                            "hashtags": script.get("hashtags", []),
-                           "script_engine": ctx.data.get("script_engine", "unknown")}
+                           "script_engine": ctx.data.get("script_engine", "unknown"),
+                           "style_id": ctx.data.get("style_id", params.get("style", "documentary")),
+                           "research_used": ctx.data.get("research_used", False)}
         if ctx.data.get("script_note"):
             job["metadata"]["script_note"] = ctx.data["script_note"]
         await send(job_id, {"type": "scenes", "scenes": job["scenes"]})
@@ -62,6 +65,8 @@ async def run_production(job_id: str, params: Dict[str, Any], workdir: Path,
         final = await editor_agent(ctx)
         if ctx.data.get("editor_note"):
             job["metadata"]["editor_note"] = ctx.data["editor_note"]
+        if ctx.data.get("thumbnail"):
+            job["thumbnail"] = ctx.data["thumbnail"]
 
         job["status"] = "done"
         job["video"] = str(final)

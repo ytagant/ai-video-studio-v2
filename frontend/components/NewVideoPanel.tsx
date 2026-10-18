@@ -3,31 +3,9 @@ import { useState } from "react";
 import { ChevronDown, Clapperboard, Loader2, Mic } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
 import type { JobParams } from "@/lib/api";
-
-// Displayed style cards -> backend-valid style values.
-const STYLES: { id: string; backend: string; blurb: string; tag?: string }[] = [
-  {
-    id: "3D Recreation",
-    backend: "3D Recreation",
-    blurb: "3D-style recreation scenes, red event clock, archive footage",
-    tag: "AI images need billing — stock footage used",
-  },
-  {
-    id: "Cinematic explainer documentary",
-    backend: "Cinematic Explainer",
-    blurb: "Vox / Johnny Harris look: chapter labels, letterbox, fact and quote cards",
-  },
-  {
-    id: "Documentary",
-    backend: "Documentary",
-    blurb: "Netflix / BBC style: calm narrator, facts, dates, cinematic grade",
-  },
-  {
-    id: "Storytelling / Kahani",
-    backend: "Documentary",
-    blurb: "Warm storyteller tone, folk tales and moral stories",
-  },
-];
+import StylePicker from "./StylePicker";
+import AspectToggle from "./AspectToggle";
+import TrendingRow from "./TrendingRow";
 
 const LANGUAGES = ["English", "Urdu", "Hindi"];
 const VOICE_MAP: Record<string, Record<string, string>> = {
@@ -58,16 +36,20 @@ export default function NewVideoPanel({
   onStart,
   onCategoryChange,
   onStyleChange,
+  onAspectChange,
   onLanguageChange,
 }: {
   running: boolean;
   onStart: (p: JobParams) => void;
   onCategoryChange: (c: string) => void;
   onStyleChange: (s: string) => void;
+  onAspectChange: (a: "16:9" | "9:16") => void;
   onLanguageChange: (l: string) => void;
 }) {
   const [topic, setTopic] = useState("");
-  const [styleId, setStyleId] = useState(STYLES[1].id);
+  const [styleId, setStyleId] = useState("cinematic");
+  const [aspect, setAspect] = useState<"16:9" | "9:16">("16:9");
+  const [keyPoints, setKeyPoints] = useState("");
   const [category, setCategory] = useState("Documentary");
   const [language, setLanguage] = useState("English");
   const [gender, setGender] = useState<"Male" | "Female">("Male");
@@ -82,13 +64,14 @@ export default function NewVideoPanel({
 
   const submit = () => {
     if (!topic.trim() || running) return;
-    const st = STYLES.find((s) => s.id === styleId)!;
     onStart({
       topic: topic.trim(),
       duration,
       language,
-      style: st.backend,
+      style: styleId,
       category,
+      aspect,
+      key_points: keyPoints.trim() || undefined,
       voice: VOICE_MAP[language][gender],
     });
   };
@@ -126,31 +109,26 @@ export default function NewVideoPanel({
           />
         </div>
 
+        <TrendingRow category={category} onPick={(t) => setTopic(t)} />
+
+        <div>
+          <label className="mb-1.5 block text-xs text-slate-500">
+            Key points <span className="text-slate-400">(optional)</span>
+          </label>
+          <textarea
+            className={`${field} min-h-[52px] resize-y`}
+            placeholder="Add key points, facts or angles to include…"
+            value={keyPoints}
+            onChange={(e) => setKeyPoints(e.target.value)}
+          />
+        </div>
+
         <div>
           <label className="mb-1.5 block text-xs text-slate-500">Style</label>
-          <div className="space-y-2">
-            {STYLES.map((s) => {
-              const active = s.id === styleId;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => { setStyleId(s.id); onStyleChange(s.backend); }}
-                  className={`block w-full rounded-xl border-2 p-3 text-left transition
-                    ${active ? "border-studio-gold bg-studio-gold/5 shadow-glow" : "border-slate-200 bg-studio-card hover:border-slate-300"}`}
-                >
-                  <div className={`text-[13px] font-bold ${active ? "text-amber-600" : "text-slate-700"}`}>
-                    {s.id}
-                  </div>
-                  <div className="mt-0.5 text-[11px] leading-snug text-slate-400">{s.blurb}</div>
-                  {s.tag && (
-                    <div className="mt-1.5 inline-block rounded-md bg-slate-900/5 px-1.5 py-0.5 text-[10px] text-slate-500">
-                      {s.tag}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <StylePicker
+            value={styleId}
+            onChange={(id) => { setStyleId(id); onStyleChange(id); }}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -207,19 +185,10 @@ export default function NewVideoPanel({
 
         <div>
           <label className="mb-1.5 block text-xs text-slate-500">Format</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="rounded-xl border-2 border-studio-gold bg-studio-gold/10 px-3 py-2.5 text-center">
-              <div className="text-[12px] font-bold text-amber-600">Long-form 16:9</div>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="relative cursor-not-allowed rounded-xl border border-slate-200 bg-studio-input px-3 py-2.5 text-center opacity-50"
-            >
-              <div className="text-[12px] font-bold text-slate-500">Short 9:16</div>
-              <span className="absolute right-2 top-2 rounded-full bg-slate-900/5 px-1.5 py-0.5 text-[9px] font-bold text-slate-400">soon</span>
-            </button>
-          </div>
+          <AspectToggle
+            value={aspect}
+            onChange={(a) => { setAspect(a); onAspectChange(a); }}
+          />
         </div>
 
         <div className="space-y-2.5 border-t border-slate-200 pt-3">
@@ -298,4 +267,3 @@ export default function NewVideoPanel({
   );
 }
 
-export { STYLES };

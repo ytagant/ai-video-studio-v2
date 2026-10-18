@@ -14,6 +14,9 @@ import subprocess
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
+from styles import get_style
+from research import research_brief
+
 EmitFn = Callable[[str, str, int, str], Awaitable[None]]
 
 VOICES: Dict[str, List[str]] = {
@@ -32,6 +35,21 @@ MUSIC_MOODS = {
     "Documentary": "epic orchestral, slow build",
     "3D Recreation": "dark cinematic pulse",
     "Cinematic Explainer": "uplifting modern cinematic",
+}
+
+# Style-aware title guidance injected into the Gemini prompt.
+_TITLE_HINTS = {
+    "documentary": "Write titles like prestige documentary episodes: intriguing but credible.",
+    "cinematic": "Titles with bold hooks and curiosity gaps, YouTube-essay style.",
+    "recreation": "Dramatic, moment-focused titles ('The Night Everything Changed').",
+    "storytelling": "Emotional story titles with a character or twist.",
+    "tech": "Titles with numbers and future-promise ('How X Will Change Everything').",
+    "kids": "Fun, exciting titles phrased as questions kids ask.",
+    "history": "Epic historical titles naming the era and place.",
+    "facts": "Numbered listicle titles ('7 ... You Won't Believe').",
+    "mystery": "Curiosity-gap titles that withhold the answer.",
+    "motivational": "Bold promise titles speaking directly to 'you'.",
+    "newsroom": "BREAKING-news style titles: urgent, headline-like, name the key figure.",
 }
 
 # Gemini model cascade — Google retired gemini-2.0-flash on 2026-06-01
@@ -77,6 +95,11 @@ CATEGORIES = {
     "Tech/Science": {
         "tone": "sharp tech explainer: breakthroughs, how-it-works, future vision",
         "visual": "futuristic tech",
+    },
+    "Celebrity News": {
+        "tone": ("entertainment-news tone: celebrity stories and trending showbiz moments "
+                 "with verified facts, red-carpet energy, respectful but juicy"),
+        "visual": "celebrity red carpet event",
     },
 }
 
@@ -128,20 +151,38 @@ def extract_json(text: str) -> Optional[Dict[str, Any]]:
 
 # ------------------------------------------------------------- 1. researcher
 
-def _gemini_script(api_key: str, topic: str, style: str, language: str,
-                   n_scenes: int, target: int, category: str = "Documentary") -> Dict[str, Any]:
+def _gemini_script(api_key: str, topic: str, style_id: str, language: str,
+                   n_scenes: int, target: int, category: str = "Documentary",
+                   brief: str = "", key_points: str = "") -> Dict[str, Any]:
     import google.generativeai as genai
     genai.configure(api_key=api_key)
-    guide = STYLE_GUIDE.get(style, STYLE_GUIDE["Documentary"])
+    sdef = get_style(style_id)
     cat_tone = CATEGORIES.get(category, CATEGORIES["Documentary"])["tone"]
+    clip = int(sdef.get("clip_seconds", 6))
+    title_hint = _TITLE_HINTS.get(sdef["id"], _TITLE_HINTS["documentary"])
+    if brief:
+        research_block = (
+            "\nVERIFIED RESEARCH (use these real facts \u2014 names, dates, places \u2014 "
+            f"in the script; NEVER invent dates or statistics):\n{brief}\n")
+    else:
+        research_block = (
+            "\n(No external research available \u2014 write from general knowledge but "
+            "do NOT invent specific dates or statistics.)\n")
+    kp_block = (f"\nThe user added these key points \u2014 weave them into the story:\n"
+                f"{key_points}\n") if key_points else ""
     prompt = (
-        f"You are a professional {guide} scriptwriter writing in the {category} category: {cat_tone}.\n"
+        f"You are a professional scriptwriter. STYLE: {sdef['name']} \u2014 {sdef['tone']}\n"
+        f"Category: {category}: {cat_tone}.\n"
+        f"{research_block}{kp_block}"
         f"Write a video script about: {topic}\n"
         f"Language of narration: {language}. Target total duration ~{target} seconds across {n_scenes} scenes.\n"
+        f"TITLE RULE: {title_hint} Generate 3 clickbait-strong title options from different "
+        "angles; put the strongest in \"title\".\n"
         "Return STRICT JSON only, no markdown fences:\n"
-        '{"title":"...","description":"...","hashtags":["#..",...],'
+        '{"title":"...","title_options":["...","...","..."],"description":"...","hashtags":["#..",...],'
         '"scenes":[{"narration":"...","keywords":"...","seconds":8}, ...]}\n'
-        "Each narration 1-3 sentences. Seconds per scene 5-12. Hashtags 8-12.\n"
+        "Description: 2-3 sentences, SEO-friendly, with a hook. Hashtags 8-12.\n"
+        f"Each narration 1-3 sentences. Seconds per scene {max(3, clip - 1)}-{clip + 2}. "
         "Per scene, \"keywords\" must be 2-4 CONCRETE english words describing exactly what the "
         "viewer should SEE as real stock footage (e.g. \"kitten eating from bowl\", \"cairo street market\"). "
         "Never use abstract, cinematic or film-jargon words (no establishing, cinematic, dramatic, "
@@ -224,21 +265,31 @@ def _template_script(topic: str, style: str, language: str, n_scenes: int, targe
 
 async def researcher_agent(ctx: Ctx) -> Dict[str, Any]:
     await ctx.emit("researcher", "working", 5, "Researching topic & writing script…")
-    topic = ctx.p("topic"); style = ctx.p("style", "Documentary")
+    topic = ctx.p("topic"); style_id = ctx.p("style", "documentary")
     language = ctx.p("language", "English"); target = int(ctx.p("duration", 60))
     category = ctx.p("category", "Documentary")
-    n_scenes = max(3, min(12, round(target / 8)))
+    key_points = ctx.p("key_points", "") or ""
+    sdef = get_style(style_id)
+    clip = int(sdef.get("clip_seconds", 6))
+    n_scenes = max(3, min(12, round(target / clip)))
+    ctx.data["style_id"] = sdef["id"]
+    ctx.data["accent_color"] = sdef.get("color", "#d4a017")
+    # real-data research brief (Wikipedia, no key) -> injected into the prompt
+    await ctx.emit("researcher", "working", 15, "Gathering real facts (Wikipedia)…")
+    brief = await asyncio.to_thread(research_brief, topic, language)
+    ctx.data["research_used"] = bool(brief)
     script: Optional[Dict[str, Any]] = None
     key = os.getenv("GEMINI_API_KEY")
     if key:
         await ctx.emit("researcher", "working", 30, "Asking Gemini for scene-by-scene script…")
         try:
-            script = await asyncio.to_thread(_gemini_script, key, topic, style, language, n_scenes, target, category)
+            script = await asyncio.to_thread(_gemini_script, key, topic, style_id, language,
+                                             n_scenes, target, category, brief, key_points)
         except Exception as e:
             ctx.data["script_note"] = f"gemini_failed: {type(e).__name__}: {str(e)[:220]}"
             await ctx.emit("researcher", "working", 45, f"Gemini unavailable ({e}); using local writer…")
     if script is None:
-        script = _template_script(topic, style, language, n_scenes, target, category)
+        script = _template_script(topic, sdef["name"], language, n_scenes, target, category)
     ctx.data["script_engine"] = script.pop("_gemini_model", "template-fallback")
     # normalize
     total = 0.0
@@ -257,13 +308,13 @@ async def researcher_agent(ctx: Ctx) -> Dict[str, Any]:
 async def director_agent(ctx: Ctx) -> Dict[str, Any]:
     await ctx.emit("director", "working", 5, "Planning shots, pacing & music…")
     script = ctx.data["script"]
-    style = ctx.p("style", "Documentary")
+    sdef = get_style(ctx.p("style", "documentary"))
     transitions = ["fade", "fade", "slide", "fade"]
     for i, s in enumerate(script["scenes"]):
         words = s["narration"].split()
         s["screen_text"] = " ".join(words[:7])
         s["transition"] = transitions[i % len(transitions)]
-        s["music_mood"] = MUSIC_MOODS.get(style, MUSIC_MOODS["Documentary"])
+        s["music_mood"] = sdef["music_mood"]
         await ctx.emit("director", "working", int((i + 1) / len(script["scenes"]) * 90),
                        f"Blocking scene {i + 1}/{len(script['scenes'])}…")
     await ctx.emit("director", "done", 100, "Shot list locked, pacing set")
@@ -649,7 +700,9 @@ async def footage_agent(ctx: Ctx) -> Dict[str, Any]:
     used_urls: set = set()  # don't reuse the same clip twice in one video
     # topic-first Commons queries (before generic per-category ones)
     topic_q = _stock_query("", topic)
-    cqueries = ([topic_q] if topic_q else []) + FOOTAGE_QUERIES.get(ctx.p("category", ""), [])
+    sdef = get_style(ctx.p("style", "documentary"))
+    cqueries = ([topic_q] if topic_q else []) + list(sdef.get("visual_bias", [])) \
+        + FOOTAGE_QUERIES.get(ctx.p("category", ""), [])
     for i, s in enumerate(scenes):
         dest = ctx.assets / f"scene_{i:02d}_clip.mp4"
         query = _stock_query(s.get("keywords", ""), topic)
@@ -783,14 +836,58 @@ async def visual_artist_agent(ctx: Ctx) -> Dict[str, Any]:
 
 async def editor_agent(ctx: Ctx) -> Path:
     await ctx.emit("editor", "working", 5, "Cutting timeline…")
-    from video_renderer import render_timeline
+    aspect = ctx.p("aspect", "16:9")
+    vertical = (aspect == "9:16")
+    W, H = (720, 1280) if vertical else (1280, 720)
+    accent = ctx.data.get("accent_color") or ctx.p("accent_color") or "#d4a017"
+    scenes = ctx.data["script"]["scenes"]
+    title = ctx.data["script"].get("title") or ctx.p("topic", "Untitled")
+
+    # --- documentary graphics overlays (vertical path only; 16:9 untouched) ---
+    title_png = None
+    if vertical:
+        from graphics import title_card, lower_third, fact_card
+        gfx = ctx.workdir / "gfx"
+        gfx.mkdir(exist_ok=True)
+        if ctx.p("title_card", True):
+            subtitle = str(ctx.data["script"].get("description", ""))[:120]
+            title_png = title_card(title, subtitle, accent, W, H,
+                                   gfx / "title_card.png")
+        # styles agent flags scenes: s["lower_third"] = strap text (key scenes),
+        # s["fact_card"] = fact text (scenes with dates/numbers)
+        for i, s in enumerate(scenes):
+            if s.get("lower_third"):
+                s["lt_png"] = str(lower_third(s["lower_third"], accent, W, H,
+                                              gfx / f"lt_{i:02d}.png"))
+            if s.get("fact_card"):
+                s["fact_png"] = str(fact_card(s["fact_card"], accent, W, H,
+                                              gfx / f"fact_{i:02d}.png"))
+
     music = os.getenv("MUSIC_FILE")
-    total = len(ctx.data["script"]["scenes"])
     await ctx.emit("editor", "working", 25, "Compositing scenes…")
-    final, subs_burned = await asyncio.to_thread(render_timeline, ctx.data["script"]["scenes"], ctx.workdir, music)
+    if vertical:
+        from render_vertical import render_timeline_vertical
+        final, subs_burned = await asyncio.to_thread(
+            render_timeline_vertical, scenes, ctx.workdir, music, title_png)
+    else:
+        from video_renderer import render_timeline
+        final, subs_burned = await asyncio.to_thread(
+            render_timeline, scenes, ctx.workdir, music)
     if not subs_burned:
         ctx.data["editor_note"] = "subtitles_skipped_low_memory_fallback"
-    await ctx.emit("editor", "working", 85, "Burning subtitles & mixing audio…")
+
+    # --- clickbait thumbnail for every video (both aspects) ---
+    await ctx.emit("editor", "working", 92, "Making thumbnail…")
+    from thumbnail import make_thumbnail
+    try:
+        thumb = await asyncio.to_thread(
+            make_thumbnail, final, title, accent,
+            ctx.workdir / "thumbnail.jpg", aspect)
+        ctx.data["thumbnail"] = str(thumb)
+    except Exception as e:  # never fail the job over a thumbnail
+        ctx.data["thumbnail"] = None
+        ctx.data["thumb_note"] = f"thumbnail_failed: {e}"
+
     await ctx.emit("editor", "done", 100, f"Render complete: {final.name}")
     return final
 

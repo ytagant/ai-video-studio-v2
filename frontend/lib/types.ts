@@ -64,4 +64,5 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "Kids", label: "Kids", blurb: "Learn & play", image: "/categories/kids.jpg" },
   { id: "Motivational", label: "Motivational", blurb: "Rise & triumph", image: "/categories/motivational.jpg" },
   { id: "Tech/Science", label: "Tech/Science", blurb: "Future explained", image: "/categories/tech.jpg" },
+  { id: "Celebrity News", label: "Celebrity News", blurb: "Stars & viral stories", image: "/categories/celebrity.jpg" },
 ];

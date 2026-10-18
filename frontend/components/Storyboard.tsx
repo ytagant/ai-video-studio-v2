@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Check, Copy, Download, Film, Hash, Sparkles, Type } from "lucide-react";
 import { CATEGORIES, JobMeta, Scene } from "@/lib/types";
 import { downloadUrl, reeditJob } from "@/lib/api";
+import ThumbnailPreview from "./ThumbnailPreview";
 
 function CopyBtn({ text }: { text: string }) {
   const [ok, setOk] = useState(false);
@@ -79,6 +80,12 @@ export default function Storyboard({
             preload="metadata"
             className="max-h-[380px] w-full"
           />
+        </div>
+      )}
+
+      {videoReady && jobId && (
+        <div className="mb-5">
+          <ThumbnailPreview jobId={jobId} />
         </div>
       )}
 

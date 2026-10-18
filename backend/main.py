@@ -35,10 +35,12 @@ class JobRequest(BaseModel):
     topic: str = Field(min_length=3, max_length=200)
     duration: int = Field(default=60, ge=15, le=600)
     language: str = Field(default="English", pattern="^(English|Urdu|Hindi)$")
-    style: str = Field(default="Documentary",
-                       pattern="^(Documentary|3D Recreation|Cinematic Explainer)$")
+    style: str = Field(default="documentary",
+                       pattern="^(documentary|cinematic|recreation|storytelling|tech|kids|history|facts|mystery|motivational|newsroom)$")
     category: str = Field(default="Documentary",
-                       pattern="^(Anime|Cartoon|Documentary|Horror|Islamic History|Kids|Motivational|Tech/Science)$")
+                       pattern="^(Anime|Cartoon|Documentary|Horror|Islamic History|Kids|Motivational|Tech/Science|Celebrity News)$")
+    aspect: str = Field(default="16:9", pattern="^(16:9|9:16)$")
+    key_points: str = Field(default="", max_length=500)
     voice: str = "default"
 
 
@@ -86,6 +88,7 @@ def _public(job: Dict[str, Any] | None) -> Dict[str, Any] | None:
         return None
     out = dict(job)
     out["video_url"] = f"/api/jobs/{job['id']}/download" if job.get("video") else None
+    out["thumbnail_url"] = f"/api/jobs/{job['id']}/thumbnail" if job.get("thumbnail") else None
     return out
 
 
@@ -104,6 +107,15 @@ async def download(job_id: str):
         raise HTTPException(404, "video not ready")
     return FileResponse(job["video"], media_type="video/mp4",
                         filename=f"studio_{job_id}.mp4")
+
+
+@app.get("/api/jobs/{job_id}/thumbnail")
+async def thumbnail(job_id: str):
+    job = jobs.get(job_id)
+    if not job or not job.get("thumbnail"):
+        raise HTTPException(404, "thumbnail not ready")
+    return FileResponse(job["thumbnail"], media_type="image/jpeg",
+                        filename=f"thumb_{job_id}.jpg")
 
 
 @app.post("/api/jobs/{job_id}/reedit")
@@ -125,6 +137,19 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/api/styles")
+async def api_styles():
+    from styles import list_styles
+    return {"styles": list_styles()}
+
+
+@app.get("/api/trending")
+async def api_trending(category: str = "General", limit: int = 8):
+    from trending import trending_topics
+    topics = await asyncio.to_thread(trending_topics, category, max(1, min(20, limit)))
+    return {"topics": topics}
+
+
 @app.get("/api/version")
 async def version():
     """Deployed build identity — tells which code is actually live."""
@@ -132,7 +157,7 @@ async def version():
 
 
 # Bump on every deploy so we can tell which code is live behind the edge.
-BUILD_TAG = "2026-10-18-theme-light-redeploy-1"
+BUILD_TAG = "2026-10-18-cinerush-upgrade-1"
 
 
 # ---- Serve the built frontend (single-container deployment) ----
