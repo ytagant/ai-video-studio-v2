@@ -106,7 +106,7 @@ export default function Home() {
 
         <main className="mx-auto w-full max-w-[1560px] flex-1 p-4 lg:p-5">
           {error && (
-            <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -130,7 +130,7 @@ export default function Home() {
                 doneCount={doneCount}
                 elapsed={elapsed}
               />
-              <div className="rounded-2xl border border-white/5 bg-studio-panel px-4 pb-3 pt-4">
+              <div className="rounded-2xl border border-slate-200 bg-studio-panel px-4 pb-3 pt-4">
                 <Pipeline agents={agents} jobStatus={jobStatus} running={running} />
               </div>
               <ProductionFloor agents={agents} />
@@ -145,7 +145,7 @@ export default function Home() {
             </div>
           </div>
 
-          <footer className="pb-4 pt-4 text-center text-[11px] text-white/25">
+          <footer className="pb-4 pt-4 text-center text-[11px] text-slate-400">
             Video Studio · six AI agents · FFmpeg engine
           </footer>
         </main>

@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 body {
-  background: #0a1120;
-  color: #e8eaf0;
+  background: #edf0f6;
+  color: #0f172a;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0a1120; }
-::-webkit-scrollbar-thumb { background: #24334f; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #31445f; }
+::-webkit-scrollbar-track { background: #edf0f6; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-input, select, textarea { color-scheme: dark; }
+input, select, textarea { color-scheme: light; }
 
 /* range slider */
 input[type="range"].studio-range {
@@ -21,7 +21,7 @@ input[type="range"].studio-range {
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, #f5a623 var(--fill, 10%), #24334f var(--fill, 10%));
+  background: linear-gradient(to right, #f5a623 var(--fill, 10%), #e2e8f0 var(--fill, 10%));
   outline: none;
 }
 input[type="range"].studio-range::-webkit-slider-thumb {
@@ -30,15 +30,15 @@ input[type="range"].studio-range::-webkit-slider-thumb {
   width: 16px; height: 16px;
   border-radius: 9999px;
   background: #f5a623;
-  border: 3px solid #0a1120;
-  box-shadow: 0 0 0 1.5px #f5a623, 0 2px 8px rgba(0,0,0,0.5);
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1.5px #f5a623, 0 2px 8px rgba(0,0,0,0.18);
   cursor: pointer;
 }
 input[type="range"].studio-range::-moz-range-thumb {
   width: 12px; height: 12px;
   border-radius: 9999px;
   background: #f5a623;
-  border: 3px solid #0a1120;
+  border: 3px solid #ffffff;
   box-shadow: 0 0 0 1.5px #f5a623;
   cursor: pointer;
 }
@@ -112,7 +112,7 @@ input[type="range"].studio-range::-moz-range-thumb {
   position: relative;
   width: 40px; height: 22px;
   border-radius: 9999px;
-  background: rgba(255,255,255,0.12);
+  background: rgba(15,23,42,0.14);
   transition: background 0.2s;
   flex-shrink: 0;
   cursor: pointer;

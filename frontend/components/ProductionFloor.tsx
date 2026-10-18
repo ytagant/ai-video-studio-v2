@@ -2,15 +2,15 @@
 import { AGENT_DEFS, AgentState } from "@/lib/types";
 
 const ACCENT: Record<string, string> = {
-  researcher: "#f5a623",
-  director: "#a78bfa",
-  voice: "#34d399",
-  footage: "#60a5fa",
-  visual: "#f472b6",
-  editor: "#f87171",
+  researcher: "#d97706",
+  director: "#8b5cf6",
+  voice: "#10b981",
+  footage: "#3b82f6",
+  visual: "#ec4899",
+  editor: "#ef4444",
 };
 
-const HOLO = "#9fdcff";
+const HOLO = "#0ea5e9";
 
 function HoloContent({ id, progress }: { id: string; progress: number }) {
   const o = 0.8;
@@ -49,14 +49,14 @@ function HoloContent({ id, progress }: { id: string; progress: number }) {
           <text x={-58} y={92} fontSize={11} fontWeight={800} fill={HOLO} opacity={0.9} letterSpacing={2}>
             LIVE
           </text>
-          <text x={52} y={94} fontSize={13} fontWeight={800} fill="#f5a623" textAnchor="end">
+          <text x={52} y={94} fontSize={13} fontWeight={800} fill="#d97706" textAnchor="end">
             {Math.round(progress)}%
           </text>
           {Array.from({ length: 9 }).map((_, i) => {
             const h = 14 + ((i * 37) % 34);
             return (
               <rect key={i} x={-56 + i * 13} y={132 - h / 2} width={7} height={h} rx={3.5}
-                fill={i % 3 === 0 ? "#34d399" : HOLO} opacity={0.85}
+                fill={i % 3 === 0 ? "#10b981" : HOLO} opacity={0.85}
                 className="eq-bar" style={{ animationDelay: `${i * 0.13}s` }} />
             );
           })}
@@ -65,7 +65,7 @@ function HoloContent({ id, progress }: { id: string; progress: number }) {
     case "footage":
       return (
         <g>
-          {["#f5a623", "#a78bfa", "#34d399", "#60a5fa", "#f472b6"].map((c, i) => (
+          {["#d97706", "#8b5cf6", "#10b981", "#3b82f6", "#ec4899"].map((c, i) => (
             <rect key={i} x={-58 + i * 24} y={86} width={18} height={18} rx={5} fill={c} opacity={0.85} />
           ))}
           {line(-58, 116, 100)}
@@ -81,9 +81,9 @@ function HoloContent({ id, progress }: { id: string; progress: number }) {
           {line(-58, 84, 100)}
           {line(-58, 98, 66)}
           <rect x={-58} y={114} width={52} height={40} rx={6} fill="none" stroke={HOLO} strokeWidth={1.5} opacity={0.6} />
-          <circle cx={-32} cy={134} r={9} fill="none" stroke="#f472b6" strokeWidth={2} opacity={0.8} />
+          <circle cx={-32} cy={134} r={9} fill="none" stroke="#ec4899" strokeWidth={2} opacity={0.8} />
           {[44, 62, 36, 54].map((h, i) => (
-            <rect key={i} x={4 + i * 16} y={158 - h} width={10} height={h} rx={2} fill="#f472b6" opacity={0.55} />
+            <rect key={i} x={4 + i * 16} y={158 - h} width={10} height={h} rx={2} fill="#ec4899" opacity={0.55} />
           ))}
         </g>
       );
@@ -91,11 +91,11 @@ function HoloContent({ id, progress }: { id: string; progress: number }) {
       return (
         <g>
           {line(-58, 84, 88)}
-          <rect x={-58} y={102} width={44} height={14} rx={4} fill="#f5a623" opacity={0.7} />
+          <rect x={-58} y={102} width={44} height={14} rx={4} fill="#d97706" opacity={0.7} />
           <rect x={-10} y={102} width={60} height={14} rx={4} fill={HOLO} opacity={0.5} />
-          <rect x={54} y={102} width={30} height={14} rx={4} fill="#f87171" opacity={0.7} />
+          <rect x={54} y={102} width={30} height={14} rx={4} fill="#ef4444" opacity={0.7} />
           <rect x={-58} y={126} width={70} height={14} rx={4} fill={HOLO} opacity={0.4} />
-          <rect x={16} y={126} width={50} height={14} rx={4} fill="#a78bfa" opacity={0.6} />
+          <rect x={16} y={126} width={50} height={14} rx={4} fill="#8b5cf6" opacity={0.6} />
           {line(-58, 150, 96)}
         </g>
       );
@@ -122,31 +122,31 @@ function Robot({ id, label, x, state }: { id: string; label: string; x: number; 
   return (
     <g>
       {/* floor shadow */}
-      <ellipse cx={x} cy={492} rx={72} ry={10} fill="#000" opacity={0.5} />
+      <ellipse cx={x} cy={492} rx={72} ry={10} fill="#0f172a" opacity={0.16} />
 
       {/* holographic screen */}
       <g>
         <rect x={x - 74} y={66} width={148} height={118} rx={10}
-          fill="rgba(125,200,255,0.07)" stroke="rgba(140,210,255,0.42)" strokeWidth={1.5}
+          fill="rgba(14,165,233,0.10)" stroke="rgba(14,165,233,0.45)" strokeWidth={1.5}
           className="holo" />
         <rect x={x - 74} y={66} width={148} height={118} rx={10} fill="none"
-          stroke="rgba(140,210,255,0.18)" strokeWidth={5} />
+          stroke="rgba(14,165,233,0.22)" strokeWidth={5} />
         <HoloContent id={id} progress={state.progress} />
-        <rect x={x - 70} y={70} width={140} height={3} rx={1.5} fill="rgba(170,225,255,0.75)"
+        <rect x={x - 70} y={70} width={140} height={3} rx={1.5} fill="rgba(14,165,233,0.6)"
           className={working ? "holo-scan" : ""} opacity={working ? 1 : 0} />
       </g>
 
       {/* robot body — animates only when working */}
       <g className={working ? "bot-working" : ""}>
         {/* arms */}
-        <rect x={x - 54} y={352} width={17} height={46} rx={8.5} fill="#dfe5ef" stroke="#c3cbdb" strokeWidth={1.5} />
-        <rect x={x + 37} y={352} width={17} height={46} rx={8.5} fill="#dfe5ef" stroke="#c3cbdb" strokeWidth={1.5} />
+        <rect x={x - 54} y={352} width={17} height={46} rx={8.5} fill="#dfe5ef" stroke="#94a3b8" strokeWidth={1.5} />
+        <rect x={x + 37} y={352} width={17} height={46} rx={8.5} fill="#dfe5ef" stroke="#94a3b8" strokeWidth={1.5} />
         {/* torso */}
-        <rect x={x - 37} y={332} width={74} height={88} rx={26} fill="#eef1f6" stroke="#c3cbdb" strokeWidth={2} />
+        <rect x={x - 37} y={332} width={74} height={88} rx={26} fill="#eef1f6" stroke="#94a3b8" strokeWidth={2} />
         <circle cx={x} cy={388} r={7.5} fill={accent} className={working ? "blink" : ""} opacity={0.9} />
         <rect x={x - 20} y={402} width={40} height={6} rx={3} fill="#d4dae6" />
         {/* head */}
-        <rect x={x - 31} y={276} width={62} height={56} rx={24} fill="#f4f6fa" stroke="#c3cbdb" strokeWidth={2} />
+        <rect x={x - 31} y={276} width={62} height={56} rx={24} fill="#f4f6fa" stroke="#94a3b8" strokeWidth={2} />
         {/* antenna */}
         <line x1={x} y1={276} x2={x} y2={262} stroke="#9aa5bb" strokeWidth={3} strokeLinecap="round" />
         <circle cx={x} cy={258} r={5} fill={accent} opacity={working ? 1 : 0.55}
@@ -189,11 +189,11 @@ export default function ProductionFloor({ agents }: { agents: Record<string, Age
   const xs = [104, 302, 500, 698, 896, 1094];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/5 bg-studio-panel">
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-studio-panel">
       <div className="flex items-center justify-between px-5 pt-4">
-        <h2 className="text-[15px] font-extrabold text-white">
+        <h2 className="text-[15px] font-extrabold text-slate-900">
           Production floor{" "}
-          <span className="ml-1 text-[11px] font-normal text-white/35">
+          <span className="ml-1 text-[11px] font-normal text-slate-400">
             {workingCount > 0
               ? `${workingCount} working · ${doneCount} done`
               : doneCount === AGENT_DEFS.length
@@ -201,8 +201,8 @@ export default function ProductionFloor({ agents }: { agents: Record<string, Age
                 : doneCount > 0 ? `${doneCount} done` : "standing by"}
           </span>
         </h2>
-        <div className="flex items-center gap-3 text-[10px] text-white/35">
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-white/25" /> Idle</span>
+        <div className="flex items-center gap-3 text-[10px] text-slate-400">
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-slate-900/10" /> Idle</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-studio-gold" /> Working</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Done</span>
         </div>
@@ -212,9 +212,9 @@ export default function ProductionFloor({ agents }: { agents: Record<string, Age
         <svg viewBox="0 0 1200 540" className="h-auto w-full" role="img" aria-label="AI agents production floor">
           <defs>
             <linearGradient id="roomGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#0d1526" />
-              <stop offset="0.75" stopColor="#080d17" />
-              <stop offset="1" stopColor="#04070c" />
+              <stop offset="0" stopColor="#ffffff" />
+              <stop offset="0.75" stopColor="#eef2f7" />
+              <stop offset="1" stopColor="#dde5ef" />
             </linearGradient>
             <linearGradient id="screenSheen" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
@@ -243,8 +243,8 @@ export default function ProductionFloor({ agents }: { agents: Record<string, Age
             </g>
           ))}
           {/* floor */}
-          <rect x={0} y={486} width={1200} height={54} fill="#030509" />
-          <rect x={0} y={486} width={1200} height={2} fill="#ffffff" opacity={0.06} />
+          <rect x={0} y={486} width={1200} height={54} fill="#d7dee9" />
+          <rect x={0} y={486} width={1200} height={2} fill="#0f172a" opacity={0.08} />
 
           {/* plants between robots */}
           <Plant x={203} y={486} s={0.9} />

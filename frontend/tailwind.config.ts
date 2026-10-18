@@ -6,11 +6,11 @@ const config: Config = {
     extend: {
       colors: {
         studio: {
-          bg: "#0a1120",
-          deep: "#070d18",
-          panel: "#101a2e",
-          card: "#152036",
-          input: "#0b1322",
+          bg: "#edf0f6",
+          deep: "#f8fafc",
+          panel: "#ffffff",
+          card: "#f4f6fb",
+          input: "#eef1f6",
           gold: "#f5a623",
           goldDeep: "#e08a1e",
           goldDim: "#8a6420",

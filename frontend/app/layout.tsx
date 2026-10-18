@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Video Studio",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 

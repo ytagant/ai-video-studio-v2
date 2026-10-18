@@ -31,18 +31,18 @@ export default function AgentStatusStrip({ agents }: { agents: Record<string, Ag
           <div
             key={def.id}
             className={`rounded-xl border bg-studio-card px-3 py-2.5 transition ${
-              working ? "border-studio-gold/40" : "border-white/8"
+              working ? "border-studio-gold/40" : "border-slate-200"
             }`}
           >
             <div className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[def.id]}`} />
-              <span className="truncate text-[11px] font-bold text-white/85">{def.label}</span>
-              {working && <Loader2 className="ml-auto h-3 w-3 shrink-0 animate-spin text-studio-gold" />}
-              {st.status === "done" && <CheckCircle2 className="ml-auto h-3 w-3 shrink-0 text-emerald-400" />}
-              {st.status === "error" && <XCircle className="ml-auto h-3 w-3 shrink-0 text-red-400" />}
+              <span className="truncate text-[11px] font-bold text-slate-700">{def.label}</span>
+              {working && <Loader2 className="ml-auto h-3 w-3 shrink-0 animate-spin text-amber-600" />}
+              {st.status === "done" && <CheckCircle2 className="ml-auto h-3 w-3 shrink-0 text-emerald-600" />}
+              {st.status === "error" && <XCircle className="ml-auto h-3 w-3 shrink-0 text-red-600" />}
             </div>
-            <div className="mt-1 truncate text-[10px] text-white/40">{st.message}</div>
-            <div className="mt-1.5 h-1 rounded-full bg-white/10">
+            <div className="mt-1 truncate text-[10px] text-slate-400">{st.message}</div>
+            <div className="mt-1.5 h-1 rounded-full bg-slate-900/5">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${st.status === "done" ? "bg-emerald-400" : BAR[def.id]}`}
                 style={{ width: `${st.progress}%` }}

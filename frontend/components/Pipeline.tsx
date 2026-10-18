@@ -45,7 +45,7 @@ export default function Pipeline({
   return (
     <div className="relative px-1 py-2">
       {/* connecting line */}
-      <div className="absolute left-6 right-6 top-[22px] h-[3px] rounded-full bg-white/10" />
+      <div className="absolute left-6 right-6 top-[22px] h-[3px] rounded-full bg-slate-900/5" />
       <div
         className="absolute left-6 top-[22px] h-[3px] rounded-full bg-gradient-to-r from-studio-gold to-orange-500 transition-all duration-700"
         style={{ width: `calc((100% - 48px) * ${pct / 100})` }}
@@ -60,17 +60,17 @@ export default function Pipeline({
                 transition={st === "working" ? { repeat: Infinity, duration: 1.5 } : {}}
                 className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-extrabold
                   ${st === "done"
-                    ? "border-emerald-400 bg-emerald-400/15 text-emerald-300"
+                    ? "border-emerald-400 bg-emerald-400/15 text-emerald-600"
                     : st === "working"
-                      ? "border-studio-gold bg-studio-gold/15 text-studio-gold shadow-glow"
+                      ? "border-studio-gold bg-studio-gold/15 text-amber-600 shadow-glow"
                       : st === "error"
-                        ? "border-red-500 bg-red-500/15 text-red-400"
-                        : "border-white/15 bg-studio-card text-white/30"}`}
+                        ? "border-red-500 bg-red-500/15 text-red-600"
+                        : "border-slate-200 bg-studio-card text-slate-400"}`}
               >
                 {st === "done" ? <Check className="h-4 w-4" strokeWidth={3} /> : i + 1}
               </motion.div>
               <div className={`text-[10px] font-semibold sm:text-[11px] ${
-                st === "idle" ? "text-white/30" : st === "done" ? "text-emerald-300" : "text-white/80"
+                st === "idle" ? "text-slate-400" : st === "done" ? "text-emerald-600" : "text-slate-700"
               }`}>
                 {s.label}
               </div>

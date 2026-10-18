@@ -10,7 +10,7 @@ export default function TopBar({
   jobId: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 border-b border-white/5 bg-studio-deep/60 px-4 py-3 lg:px-6">
+    <div className="flex items-center gap-3 border-b border-slate-200 bg-studio-deep/60 px-4 py-3 lg:px-6">
       {/* mobile brand */}
       <div className="flex items-center gap-2 lg:hidden">
         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-studio-gold to-orange-600">
@@ -18,15 +18,15 @@ export default function TopBar({
             <path d="M8 5.5v13l11-6.5z" />
           </svg>
         </div>
-        <span className="text-sm font-extrabold text-studio-gold">Video Studio</span>
+        <span className="text-sm font-extrabold text-amber-600">Video Studio</span>
       </div>
 
       {/* search */}
       <div className="relative mx-auto w-full max-w-xl">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           placeholder="Search your videos and projects..."
-          className="w-full rounded-xl border border-white/10 bg-studio-input py-2.5 pl-10 pr-4 text-sm text-white/80 placeholder:text-white/25 outline-none transition focus:border-studio-gold/50"
+          className="w-full rounded-xl border border-slate-200 bg-studio-input py-2.5 pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition focus:border-studio-gold/50"
         />
       </div>
 
@@ -35,23 +35,23 @@ export default function TopBar({
         <span
           className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${
             running
-              ? "border-studio-gold/50 bg-studio-gold/10 text-studio-gold"
-              : "border-white/10 bg-white/5 text-white/40"
+              ? "border-studio-gold/50 bg-studio-gold/10 text-amber-600"
+              : "border-slate-200 bg-slate-900/5 text-slate-400"
           }`}
         >
           {running ? "● In production" : "○ Idle"}
         </span>
-        <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/50 xl:block">
+        <span className="hidden rounded-full border border-slate-200 bg-slate-900/5 px-3 py-1.5 text-[11px] font-semibold text-slate-500 xl:block">
           Unlimited videos
         </span>
         <span className="hidden items-center gap-1.5 rounded-full bg-gradient-to-r from-studio-gold to-amber-500 px-3 py-1.5 text-[11px] font-extrabold text-black lg:flex">
           <Crown className="h-3.5 w-3.5" /> Membership
         </span>
-        <span className="hidden font-mono text-[11px] text-white/50 xl:block">
+        <span className="hidden font-mono text-[11px] text-slate-500 xl:block">
           {agentsDone}/6 · {Math.round(progress)}%
         </span>
         {jobId && (
-          <span className="hidden font-mono text-[10px] text-white/25 2xl:block">
+          <span className="hidden font-mono text-[10px] text-slate-400 2xl:block">
             {jobId.slice(0, 8)}
           </span>
         )}
@@ -60,7 +60,7 @@ export default function TopBar({
             <button
               key={i}
               title="Coming soon"
-              className="rounded-full p-2 text-white/40 transition hover:bg-white/10 hover:text-white"
+              className="rounded-full p-2 text-slate-400 transition hover:bg-slate-900/5 hover:text-slate-900"
             >
               <Icon className="h-4 w-4" />
             </button>
@@ -71,8 +71,8 @@ export default function TopBar({
             O
           </div>
           <div className="leading-tight">
-            <div className="text-[12px] font-bold text-white">Owner</div>
-            <div className="text-[10px] text-white/40">Owner mode</div>
+            <div className="text-[12px] font-bold text-slate-900">Owner</div>
+            <div className="text-[10px] text-slate-400">Owner mode</div>
           </div>
         </div>
       </div>
